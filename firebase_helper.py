@@ -1,7 +1,6 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_query import FieldFilter  # Add this import
-import uuid
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -33,9 +32,6 @@ def init_firestore():
         firebase_admin.initialize_app(cred)
 
     return firestore.client()
-
-
-
 
 def generate_ticket_id():
     """Generate a unique 6-character ticket ID"""
@@ -271,4 +267,3 @@ def check_student_already_attempted(db, ticket_id, student_name):
     except Exception as e:
         print(f"Error checking student attempt: {e}")
         return False  # On error, allow attempt (fail-safe)
-
