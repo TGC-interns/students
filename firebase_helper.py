@@ -102,30 +102,30 @@ def get_all_tickets_by_teacher(db, teacher_name):
         return []
 
 # Alternative version if you want to try Firestore ordering (requires index)
-def get_all_tickets_by_teacher_with_ordering(db, teacher_name):
-    """
-    Alternative version with Firestore ordering - requires composite index
-    """
-    try:
-        tickets_ref = db.collection("tickets") \
-                       .where("teacher_name", "==", teacher_name) \
-                       .order_by("created_at", direction=firestore.Query.DESCENDING) \
-                       .stream()
+# def get_all_tickets_by_teacher_with_ordering(db, teacher_name):
+#     """
+#     Alternative version with Firestore ordering - requires composite index
+#     """
+#     try:
+#         tickets_ref = db.collection("tickets") \
+#                        .where("teacher_name", "==", teacher_name) \
+#                        .order_by("created_at", direction=firestore.Query.DESCENDING) \
+#                        .stream()
         
-        tickets = []
-        for doc in tickets_ref:
-            ticket_data = doc.to_dict()
-            tickets.append(ticket_data)
+#         tickets = []
+#         for doc in tickets_ref:
+#             ticket_data = doc.to_dict()
+#             tickets.append(ticket_data)
         
-        return tickets
+#         return tickets
         
-    except Exception as e:
-        print(f"Error with ordered query: {e}")
-        print("You may need to create a composite index in Firestore")
-        print("Index needed: Collection: 'tickets', Fields: 'teacher_name' (Ascending), 'created_at' (Descending)")
+#     except Exception as e:
+#         print(f"Error with ordered query: {e}")
+#         print("You may need to create a composite index in Firestore")
+#         print("Index needed: Collection: 'tickets', Fields: 'teacher_name' (Ascending), 'created_at' (Descending)")
         
-        # Fallback to simple query
-        return get_all_tickets_by_teacher(db, teacher_name)
+#         # Fallback to simple query
+#         return get_all_tickets_by_teacher(db, teacher_name)
 
 def update_ticket_status(db, ticket_id, status):
     """

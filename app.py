@@ -31,14 +31,16 @@ def student_dashboard():
     st.title("🎓 Student Portal - Exit Ticket")
     st.markdown("Enter the ticket code provided by your teacher to start the exit ticket.")
 
-    # Initialize session state for exit tickets
+    # MODIFIED: Initialize session state for exit tickets with submission tracking
     for key, default in {
         "ticket_data": None,
         "ticket_current_question": 0,
         "ticket_user_answers": {},
         "ticket_quiz_completed": False,
         "ticket_show_feedback": False,
-        "ticket_last_user_answer": None
+        "ticket_last_user_answer": None,
+        "ticket_question_submitted": {},  
+        "ticket_question_flags": {}       
     }.items():
         if key not in st.session_state:
             st.session_state[key] = default
@@ -148,6 +150,10 @@ def show_ticket_quiz_page():
     if 'ticket_question_flags' not in st.session_state:
         st.session_state.ticket_question_flags = {}
 
+    # ADD: Initialize submission lock flags
+    if 'ticket_question_submitted' not in st.session_state:
+        st.session_state.ticket_question_submitted = {}
+
     # Display ticket info
     st.header(f"🎫 {ticket_data.get('title', 'Exit Ticket')}")
     
@@ -176,14 +182,18 @@ def show_ticket_quiz_page():
     st.subheader(f"Question {current_q + 1}")
     st.markdown(f"**{question_data['question']}**")
 
-    # Flag button section
+    # MODIFIED: Check if current question is already submitted
+    is_question_submitted = st.session_state.ticket_question_submitted.get(current_q, False)
+
+    # Flag button section - DISABLE if question is submitted
     col1, col2 = st.columns([3, 1])
     with col2:
         is_flagged = st.session_state.ticket_question_flags.get(current_q, False)
         flag_text = "🚩 Flagged" if is_flagged else " 🏳️ "
         flag_color = "secondary" if is_flagged else "primary"
         
-        if st.button(flag_text, key=f"flag_btn_{current_q}", type=flag_color):
+        # MODIFIED: Disable flag button if question is submitted
+        if st.button(flag_text, key=f"flag_btn_{current_q}", type=flag_color, disabled=is_question_submitted):
             # Toggle flag status
             st.session_state.ticket_question_flags[current_q] = not is_flagged
             if not is_flagged:
@@ -196,26 +206,39 @@ def show_ticket_quiz_page():
     if is_flagged:
         st.warning("🚩 **This question is flagged** - You've marked this as unclear or potentially out of syllabus.")
 
+    # MODIFIED: Show submission status
+    if is_question_submitted:
+        st.success("✅ **Answer submitted!** You cannot modify your answer for this question.")
+
     # Show answer options in a form - MAINTAIN ORIGINAL ORDER
     with st.form(f"ticket_question_{current_q}"):
+        # MODIFIED: Check if answer was given AND submitted
         answer_given = current_q in st.session_state.ticket_user_answers
+        form_disabled = is_question_submitted  # Disable entire form if submitted
 
         # Keep options in A, B, C, D order - no randomization
         option_keys = ['A', 'B', 'C', 'D']  # Fixed order
         available_options = [key for key in option_keys if key in question_data['options']]
+        
+        # MODIFIED: Set default value if answer exists
+        default_answer = st.session_state.ticket_user_answers.get(current_q, available_options[0] if available_options else None)
         
         user_answer = st.radio(
             "Select your answer:",
             options=available_options,  # Use fixed order
             format_func=lambda x: f"{x}) {question_data['options'][x]}",
             key=f"ticket_radio_{current_q}",
-            disabled=answer_given
+            index=available_options.index(default_answer) if default_answer in available_options else 0,
+            disabled=form_disabled  # MODIFIED: Disable if submitted
         )
 
-        submitted = st.form_submit_button("Submit Answer", type="primary", disabled=answer_given)
+        # MODIFIED: Disable submit button if already submitted
+        submitted = st.form_submit_button("Submit Answer", type="primary", disabled=form_disabled)
 
     # Process after form is submitted (outside form block)
-    if submitted:
+    if submitted and not is_question_submitted:  # MODIFIED: Only process if not already submitted
+        # LOCK the question after submission
+        st.session_state.ticket_question_submitted[current_q] = True
         st.session_state.ticket_user_answers[current_q] = user_answer
         st.session_state.ticket_last_user_answer = user_answer
 
@@ -226,7 +249,19 @@ def show_ticket_quiz_page():
             st.error(f"❌ Incorrect. The correct answer is {correct_answer})")
 
         st.info(f"**Explanation:** {question_data.get('explanation', 'No explanation provided.')}")
+        
+        # RERUN to update the interface
+        st.rerun()
 
+    # MODIFIED: Show feedback if question is submitted
+    if is_question_submitted:
+        user_answer = st.session_state.ticket_user_answers[current_q]
+        correct_answer = question_data['correct_answer']
+        if user_answer == correct_answer:
+            st.success("✅ Correct!")
+        else:
+            st.error(f"❌ Incorrect. The correct answer is {correct_answer})")
+        st.info(f"**Explanation:** {question_data.get('explanation', 'No explanation provided.')}")
     
     # Navigation buttons (outside the form)
     col1, col2 = st.columns([1, 1])
@@ -243,9 +278,13 @@ def show_ticket_quiz_page():
                 st.session_state.ticket_current_question = current_q + 1
                 st.rerun()
         else:
-            if st.button("🏁 Finish Exit Ticket", key=f"ticket_finish_{current_q}"):
-                st.session_state.ticket_quiz_completed = True
-                st.rerun()
+            # MODIFIED: Only show finish button if current question is submitted
+            if is_question_submitted:
+                if st.button("🏁 Finish Exit Ticket", key=f"ticket_finish_{current_q}"):
+                    st.session_state.ticket_quiz_completed = True
+                    st.rerun()
+            else:
+                st.warning("⚠️ Please submit your answer for this question before finishing the exit ticket.")
 
 def show_ticket_results_page():
     """Display results after completing the exit ticket"""
@@ -374,7 +413,7 @@ def show_ticket_results_page():
     
     with col1:
         if st.button("🔄 Take Another Exit Ticket"):
-            # Reset ticket session state
+            # MODIFIED: Reset ticket session state INCLUDING submission tracking
             st.session_state.ticket_data = None
             st.session_state.ticket_current_question = 0
             st.session_state.ticket_user_answers = {}
@@ -385,10 +424,10 @@ def show_ticket_results_page():
             st.session_state.response_saved = False
             st.session_state.student_already_attempted = False
             st.session_state.ticket_question_flags = {}  # Reset flags
+            st.session_state.ticket_question_submitted = {}  # ADD: Reset submission tracking
             if 'ticket_initialized' in st.session_state:
                 del st.session_state.ticket_initialized
             st.rerun()
-
     with col2:
         st.markdown("**Need help?**")
         st.markdown("Contact your teacher if you have any questions.")
