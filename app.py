@@ -180,7 +180,7 @@ def show_ticket_quiz_page():
     col1, col2 = st.columns([3, 1])
     with col2:
         is_flagged = st.session_state.ticket_question_flags.get(current_q, False)
-        flag_text = "🚩 Flagged" if is_flagged else "🏳️ Flag Question"
+        flag_text = "🚩 Flagged" if is_flagged else " 🏳️ "
         flag_color = "secondary" if is_flagged else "primary"
         
         if st.button(flag_text, key=f"flag_btn_{current_q}", type=flag_color):
@@ -227,18 +227,7 @@ def show_ticket_quiz_page():
 
         st.info(f"**Explanation:** {question_data.get('explanation', 'No explanation provided.')}")
 
-    # Flag information box
-    with st.expander("ℹ️ What does flagging a question mean?"):
-        st.markdown("""
-        **Flag a question if:**
-        - The question is unclear or confusing
-        - The question seems to be out of syllabus
-        - You think there might be an error in the question
-        - The concept wasn't covered in class
-        
-        Your teacher will be able to see which questions were flagged and can review them.
-        """)
-
+    
     # Navigation buttons (outside the form)
     col1, col2 = st.columns([1, 1])
 
