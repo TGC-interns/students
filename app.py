@@ -50,16 +50,19 @@ def student_dashboard():
         show_ticket_input_page()
 
     elif not st.session_state.ticket_quiz_completed:
-        # 🔁 Randomly select only 3 questions once - BUT KEEP OPTIONS ORDER
+        # 🔁 Randomly select only 3 questions once - BUT PRESERVE ORIGINAL INDICES
         if 'ticket_initialized' not in st.session_state:
             all_questions = st.session_state.ticket_data['questions']
-            # Select random questions but preserve their internal structure
+            
+            for i, question in enumerate(all_questions):
+                question['original_index'] = i
+            
+            # Select random questions but preserve their original indices
             selected_questions = random.sample(all_questions, min(3, len(all_questions)))
             
             # Ensure each question maintains its original option order
             for question in selected_questions:
-                # Don't modify the options dictionary - keep A, B, C, D order
-                pass  # Options remain in original order
+                pass
             
             st.session_state.ticket_data['questions'] = selected_questions
             st.session_state.ticket_current_question = 0
@@ -179,23 +182,28 @@ def show_ticket_quiz_page():
     st.caption(f"Question {current_q + 1} of {len(questions)}")
 
     question_data = questions[current_q]
+    
+    # FIX: Get the original question index from the selected questions
+    original_question_index = question_data.get('original_index', current_q)
+    
     st.subheader(f"Question {current_q + 1}")
     st.markdown(f"**{question_data['question']}**")
 
-    # MODIFIED: Check if current question is already submitted
-    is_question_submitted = st.session_state.ticket_question_submitted.get(current_q, False)
+    # MODIFIED: Check if current question is already submitted using original index
+    is_question_submitted = st.session_state.ticket_question_submitted.get(original_question_index, False)
 
     # Flag button section - DISABLE if question is submitted
     col1, col2 = st.columns([3, 1])
     with col2:
-        is_flagged = st.session_state.ticket_question_flags.get(current_q, False)
+        # FIX: Use original question index for flags
+        is_flagged = st.session_state.ticket_question_flags.get(original_question_index, False)
         flag_text = "🚩 Flagged" if is_flagged else " 🏳️ "
         flag_color = "secondary" if is_flagged else "primary"
         
         # MODIFIED: Disable flag button if question is submitted
-        if st.button(flag_text, key=f"flag_btn_{current_q}", type=flag_color, disabled=is_question_submitted):
-            # Toggle flag status
-            st.session_state.ticket_question_flags[current_q] = not is_flagged
+        if st.button(flag_text, key=f"flag_btn_{current_q}", type=flag_color):
+            # Toggle flag status using original index
+            st.session_state.ticket_question_flags[original_question_index] = not is_flagged
             if not is_flagged:
                 st.warning("⚠️ Question flagged! This indicates you find the question unclear or out of syllabus.")
             else:
@@ -206,22 +214,17 @@ def show_ticket_quiz_page():
     if is_flagged:
         st.warning("🚩 **This question is flagged** - You've marked this as unclear or potentially out of syllabus.")
 
-    # MODIFIED: Show submission status
-    if is_question_submitted:
-        st.success("✅ **Answer submitted!** You cannot modify your answer for this question.")
-
-    # Show answer options in a form - MAINTAIN ORIGINAL ORDER
     with st.form(f"ticket_question_{current_q}"):
-        # MODIFIED: Check if answer was given AND submitted
-        answer_given = current_q in st.session_state.ticket_user_answers
+        # MODIFIED: Check if answer was given AND submitted using original index
+        answer_given = original_question_index in st.session_state.ticket_user_answers
         form_disabled = is_question_submitted  # Disable entire form if submitted
 
         # Keep options in A, B, C, D order - no randomization
         option_keys = ['A', 'B', 'C', 'D']  # Fixed order
         available_options = [key for key in option_keys if key in question_data['options']]
         
-        # MODIFIED: Set default value if answer exists
-        default_answer = st.session_state.ticket_user_answers.get(current_q, available_options[0] if available_options else None)
+        # MODIFIED: Set default value if answer exists using original index
+        default_answer = st.session_state.ticket_user_answers.get(original_question_index, available_options[0] if available_options else None)
         
         user_answer = st.radio(
             "Select your answer:",
@@ -237,9 +240,10 @@ def show_ticket_quiz_page():
 
     # Process after form is submitted (outside form block)
     if submitted and not is_question_submitted:  # MODIFIED: Only process if not already submitted
-        # LOCK the question after submission
-        st.session_state.ticket_question_submitted[current_q] = True
-        st.session_state.ticket_user_answers[current_q] = user_answer
+        # LOCK the question after submission using original index
+        st.session_state.ticket_question_submitted[original_question_index] = True
+        # FIX: Store answer using original question index
+        st.session_state.ticket_user_answers[original_question_index] = user_answer
         st.session_state.ticket_last_user_answer = user_answer
 
         correct_answer = question_data['correct_answer']
@@ -255,7 +259,7 @@ def show_ticket_quiz_page():
 
     # MODIFIED: Show feedback if question is submitted
     if is_question_submitted:
-        user_answer = st.session_state.ticket_user_answers[current_q]
+        user_answer = st.session_state.ticket_user_answers[original_question_index]
         correct_answer = question_data['correct_answer']
         if user_answer == correct_answer:
             st.success("✅ Correct!")
@@ -306,13 +310,15 @@ def show_ticket_results_page():
     
     st.markdown("---")
     
-    # Calculate score
+    # Calculate score using original indices
     correct_count = 0
     total_questions = len(questions)
     
-    for i, question_data in enumerate(questions):
-        if i in user_answers and user_answers[i] == question_data['correct_answer']:
-            correct_count += 1
+    for question_data in questions:
+        original_index = question_data.get('original_index')
+        if original_index is not None and original_index in user_answers:
+            if user_answers[original_index] == question_data['correct_answer']:
+                correct_count += 1
     
     score_percentage = (correct_count / total_questions) * 100
     
@@ -345,9 +351,9 @@ def show_ticket_results_page():
                     db, 
                     ticket_data['ticket_id'], 
                     st.session_state.get('student_name', 'Unknown'),
-                    user_answers,
+                    user_answers,  # This now contains original indices as keys
                     score_data,
-                    question_flags  # Pass flags to save function
+                    question_flags  # This now contains original indices as keys
                 )
                 
                 if success:
@@ -378,15 +384,16 @@ def show_ticket_results_page():
     st.subheader("📝 Detailed Review")
     
     for i, question_data in enumerate(questions):
-        flag_status = " 🚩" if question_flags.get(i, False) else ""
+        original_index = question_data.get('original_index')
+        flag_status = " 🚩" if question_flags.get(original_index, False) else ""
         with st.expander(f"Question {i + 1}: {question_data['question'][:50]}...{flag_status}"):
             st.markdown(f"**Question:** {question_data['question']}")
             
-            # Show flag status
-            if question_flags.get(i, False):
+            # Show flag status using original index
+            if question_flags.get(original_index, False):
                 st.warning("🚩 **You flagged this question** as unclear or out of syllabus")
             
-            user_answer = user_answers.get(i, "NA")
+            user_answer = user_answers.get(original_index, "NA")
             correct_answer = question_data['correct_answer']
             
             # Show all options in A, B, C, D order
