@@ -252,7 +252,6 @@ def show_ticket_quiz_page():
         else:
             st.error(f"❌ Incorrect. The correct answer is {correct_answer})")
 
-        st.info(f"**Explanation:** {question_data.get('explanation', 'No explanation provided.')}")
         
         # RERUN to update the interface
         st.rerun()
@@ -265,7 +264,6 @@ def show_ticket_quiz_page():
             st.success("✅ Correct!")
         else:
             st.error(f"❌ Incorrect. The correct answer is {correct_answer})")
-        st.info(f"**Explanation:** {question_data.get('explanation', 'No explanation provided.')}")
     
     # Navigation buttons (outside the form)
     col1, col2 = st.columns([1, 1])
