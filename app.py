@@ -261,9 +261,9 @@ def show_ticket_quiz_page():
         user_answer = st.session_state.ticket_user_answers[original_question_index]
         correct_answer = question_data['correct_answer']
         if user_answer == correct_answer:
-            st.success("✅ Correct!")
+            st.success("Submitted!")
         else:
-            st.error(f"❌ Incorrect. The correct answer is {correct_answer})")
+            st.success("Submitted!")
     
     # Navigation buttons (outside the form)
     col1, col2 = st.columns([1, 1])
