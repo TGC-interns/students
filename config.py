@@ -12,7 +12,7 @@ APP_ICON = "🎓"
 PAGE_LAYOUT = "wide"
 
 # Quiz Configuration
-DEFAULT_QUESTIONS_COUNT = 5
+DEFAULT_QUESTIONS_COUNT = 3
 
 # UI Configuration
 QUESTION_HEIGHT = 100
