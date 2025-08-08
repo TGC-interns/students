@@ -58,7 +58,7 @@ def student_dashboard():
                 question['original_index'] = i
             
             # Select random questions but preserve their original indices
-            selected_questions = random.sample(all_questions, min(3, len(all_questions)))
+            selected_questions = random.sample(all_questions, min(DEFAULT_QUESTIONS_COUNT, len(all_questions)))
             
             # Ensure each question maintains its original option order
             for question in selected_questions:
@@ -280,13 +280,36 @@ def show_ticket_quiz_page():
                 st.session_state.ticket_current_question = current_q + 1
                 st.rerun()
         else:
-            # MODIFIED: Only show finish button if current question is submitted
-            if is_question_submitted:
+            # FIXED: Check if ALL questions are answered, not just the last one
+            def are_all_questions_answered():
+                """Check if all questions in the ticket have been answered"""
+                for i, question in enumerate(questions):
+                    original_idx = question.get('original_index', i)
+                    if not st.session_state.ticket_question_submitted.get(original_idx, False):
+                        return False
+                return True
+            
+            all_answered = are_all_questions_answered()
+            
+            if all_answered:
                 if st.button("🏁 Finish Exit Ticket", key=f"ticket_finish_{current_q}"):
                     st.session_state.ticket_quiz_completed = True
                     st.rerun()
             else:
-                st.warning("⚠️ Please submit your answer for this question before finishing the exit ticket.")
+                # Count how many questions are unanswered
+                unanswered_count = 0
+                unanswered_numbers = []
+                for i, question in enumerate(questions):
+                    original_idx = question.get('original_index', i)
+                    if not st.session_state.ticket_question_submitted.get(original_idx, False):
+                        unanswered_count += 1
+                        unanswered_numbers.append(i + 1)  # Display 1-based question numbers
+                
+                if unanswered_count == 1:
+                    st.warning(f"⚠️ Please answer question {unanswered_numbers[0]} before finishing the exit ticket.")
+                else:
+                    unanswered_str = ", ".join(map(str, unanswered_numbers))
+                    st.warning(f"⚠️ Please answer all remaining questions ({unanswered_str}) before finishing the exit ticket.")
 
 def show_ticket_results_page():
     """Display results after completing the exit ticket"""
